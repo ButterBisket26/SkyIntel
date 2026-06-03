@@ -1,0 +1,10 @@
+fastapi
+uvicorn
+pandas
+beautifulsoup4
+requests
+nltk
+vaderSentiment
+wordcloud
+matplotlib
+pydantic

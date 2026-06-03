@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>SkyIntel | NLP-Powered Airline Review Intelligence Platform</title>
+    <!-- Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- jsVectorMap -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/jsvectormap/dist/css/jsvectormap.min.css" />
+    <script src="https://cdn.jsdelivr.net/npm/jsvectormap"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jsvectormap/dist/maps/world.js"></script>
+    <link rel="stylesheet" href="style.css?v=2">
+    <!-- Meta tags for SEO -->
+    <meta name="description" content="SkyIntel - Analyze real-time sentiment, extract aspects, and detect passenger complaints for any airline using NLP-powered review intelligence.">
+</head>
+<body>
+    <div class="blob blob-1"></div>
+    <div class="blob blob-2"></div>
+
+    <div class="container">
+        <!-- Navigation Bar / Header -->
+        <nav class="navbar">
+            <div class="nav-logo">
+                <svg viewBox="0 0 24 24" width="28" height="28" stroke="currentColor" stroke-width="2.5" fill="none" class="logo-icon">
+                    <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" fill="currentColor" fill-opacity="0.1"></path>
+                    <path d="M7 12h10M14 9l3 3-3 3" stroke-linecap="round" stroke-linejoin="round"></path>
+                </svg>
+                <span class="logo-text">Sky<span class="highlight">Intel</span></span>
+            </div>
+            <div class="nav-tagline">NLP-Powered Airline Review Intelligence Platform</div>
+            <button id="theme-toggle" class="theme-toggle-btn" aria-label="Toggle theme">
+                <svg class="theme-icon moon-icon" viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none">
+                    <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+                </svg>
+                <svg class="theme-icon sun-icon hidden" viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none">
+                    <circle cx="12" cy="12" r="5"></circle>
+                    <line x1="12" y1="1" x2="12" y2="3"></line>
+                    <line x1="12" y1="21" x2="12" y2="23"></line>
+                    <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+                    <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+                    <line x1="1" y1="12" x2="3" y2="12"></line>
+                    <line x1="21" y1="12" x2="23" y2="12"></line>
+                    <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+                    <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+                </svg>
+            </button>
+        </nav>
+
+        <div class="search-box">
+            <form id="search-form">
+                <input type="text" id="airline-input" placeholder="Enter airline name (e.g. British Airways)..." required autocomplete="off">
+                <button type="submit">
+                    <span>Analyze</span>
+                    <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="22" y1="2" x2="11" y2="13"></line>
+                        <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                    </svg>
+                </button>
+            </form>
+            <div id="error-message" class="hidden"></div>
+        </div>
+
+        <div id="loading" class="hidden">
+            <div class="spinner"></div>
+            <p>Scraping and analyzing reviews...<br><small>This may take up to 10 seconds.</small></p>
+        </div>
+
+        <div id="results" class="hidden glass-panel">
+            <div class="results-header">
+                <h2>Analysis for <span id="airline-name-display"></span></h2>
+                <div class="badge" id="total-reviews-badge">0 Reviews</div>
+            </div>
+
+            <!-- KPI Summary Section -->
+            <div class="kpi-container">
+                <div class="kpi-card" id="kpi-rating-card">
+                    <div class="kpi-card-header">
+                        <span class="kpi-card-title">Overall Rating</span>
+                        <div class="kpi-card-icon-wrapper">
+                            <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" class="kpi-icon-svg icon-yellow">
+                                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+                            </svg>
+                        </div>
+                    </div>
+                    <div class="kpi-card-value" id="kpi-rating-value">0.0/5</div>
+                    <div class="kpi-card-trend" id="kpi-rating-trend">
+                        <span class="trend-indicator"></span>
+                        <span class="trend-text"></span>
+                    </div>
+                </div>
+
+                <div class="kpi-card" id="kpi-recommendation-card">
+                    <div class="kpi-card-header">
+                        <span class="kpi-card-title">Recommendation</span>
+                        <div class="kpi-card-icon-wrapper">
+                            <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" class="kpi-icon-svg icon-blue">
+                                <path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"></path>
+                            </svg>
+                        </div>
+                    </div>
+                    <div class="kpi-card-value" id="kpi-recommendation-value">0%</div>
+                    <div class="kpi-card-trend" id="kpi-recommendation-trend">
+                        <span class="trend-indicator"></span>
+                        <span class="trend-text"></span>
+                    </div>
+                </div>
+
+                <div class="kpi-card" id="kpi-positive-card">
+                    <div class="kpi-card-header">
+                        <span class="kpi-card-title">Positive Sentiment</span>
+                        <div class="kpi-card-icon-wrapper">
+                            <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" class="kpi-icon-svg icon-green">
+                                <circle cx="12" cy="12" r="10"></circle>
+                                <path d="M8 14s1.5 2 4 2 4-2 4-2"></path>
+                                <line x1="9" y1="9" x2="9.01" y2="9"></line>
+                                <line x1="15" y1="9" x2="15.01" y2="9"></line>
+                            </svg>
+                        </div>
+                    </div>
+                    <div class="kpi-card-value" id="kpi-positive-value">0%</div>
+                    <div class="kpi-card-trend text-secondary">of reviews</div>
+                </div>
+
+                <div class="kpi-card" id="kpi-negative-card">
+                    <div class="kpi-card-header">
+                        <span class="kpi-card-title">Negative Sentiment</span>
+                        <div class="kpi-card-icon-wrapper">
+                            <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" class="kpi-icon-svg icon-red">
+                                <circle cx="12" cy="12" r="10"></circle>
+                                <path d="M16 16s-1.5-2-4-2-4 2-4 2"></path>
+                                <line x1="9" y1="9" x2="9.01" y2="9"></line>
+                                <line x1="15" y1="9" x2="15.01" y2="9"></line>
+                            </svg>
+                        </div>
+                    </div>
+                    <div class="kpi-card-value" id="kpi-negative-value">0%</div>
+                    <div class="kpi-card-trend text-secondary">of reviews</div>
+                </div>
+
+                <div class="kpi-card" id="kpi-reviews-card">
+                    <div class="kpi-card-header">
+                        <span class="kpi-card-title">Total Reviews</span>
+                        <div class="kpi-card-icon-wrapper">
+                            <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" class="kpi-icon-svg icon-purple">
+                                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                            </svg>
+                        </div>
+                    </div>
+                    <div class="kpi-card-value" id="kpi-reviews-value">0</div>
+                    <div class="kpi-card-trend text-secondary">Scraped & analyzed</div>
+                </div>
+            </div>
+
+            <!-- Review Filter Panel Section -->
+            <div id="filter-panel" class="filter-panel">
+                <div class="filter-header">
+                    <div class="filter-header-left">
+                        <h3>
+                            <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none">
+                                <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
+                            </svg>
+                            Review Filters
+                        </h3>
+                        <span id="filter-count" class="filter-count-badge">Showing 0 of 0 Reviews</span>
+                    </div>
+                    <button id="reset-filters-btn" class="btn btn-secondary">Reset Filters</button>
+                </div>
+                <div class="filter-grid">
+                    <!-- Sentiment Filter -->
+                    <div class="filter-group">
+                        <label for="filter-sentiment">Sentiment</label>
+                        <div class="filter-select-wrapper">
+                            <select id="filter-sentiment">
+                                <option value="all">All Reviews</option>
+                                <option value="Positive">Positive</option>
+                                <option value="Negative">Negative</option>
+                                <option value="Neutral">Neutral</option>
+                            </select>
+                        </div>
+                    </div>
+                    <!-- Rating Filter (Multi-select) -->
+                    <div class="filter-group">
+                        <label>Rating</label>
+                        <div class="multi-select-custom" id="rating-multi-select">
+                            <button type="button" class="multi-select-trigger" id="rating-trigger">All Ratings</button>
+                            <div class="multi-select-options hidden" id="rating-options">
+                                <label><input type="checkbox" value="5" checked> 5 Stars</label>
+                                <label><input type="checkbox" value="4" checked> 4 Stars</label>
+                                <label><input type="checkbox" value="3" checked> 3 Stars</label>
+                                <label><input type="checkbox" value="2" checked> 2 Stars</label>
+                                <label><input type="checkbox" value="1" checked> 1 Star</label>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Date Range Filter -->
+                    <div class="filter-group">
+                        <label for="filter-date-range">Date Range</label>
+                        <div class="filter-select-wrapper">
+                            <select id="filter-date-range">
+                                <option value="all">All Time</option>
+                                <option value="month">Last Month</option>
+                                <option value="3months">Last 3 Months</option>
+                                <option value="6months">Last 6 Months</option>
+                                <option value="year">Last Year</option>
+                                <option value="custom">Custom Date Range</option>
+                            </select>
+                        </div>
+                        <div id="custom-date-inputs" class="custom-date-inputs hidden">
+                            <input type="date" id="custom-date-start">
+                            <input type="date" id="custom-date-end">
+                        </div>
+                    </div>
+                    <!-- Traveler Type Filter (Multi-select) -->
+                    <div class="filter-group">
+                        <label>Traveler Type</label>
+                        <div class="multi-select-custom" id="traveler-multi-select">
+                            <button type="button" class="multi-select-trigger" id="traveler-trigger">All Types</button>
+                            <div class="multi-select-options hidden" id="traveler-options">
+                                <label><input type="checkbox" value="Solo Traveler" checked> Solo Traveler</label>
+                                <label><input type="checkbox" value="Couple Leisure" checked> Couple</label>
+                                <label><input type="checkbox" value="Family Leisure" checked> Family</label>
+                                <label><input type="checkbox" value="Business" checked> Business Traveler</label>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Cabin Class Filter (Multi-select) -->
+                    <div class="filter-group">
+                        <label>Cabin Class</label>
+                        <div class="multi-select-custom" id="cabin-multi-select">
+                            <button type="button" class="multi-select-trigger" id="cabin-trigger">All Classes</button>
+                            <div class="multi-select-options hidden" id="cabin-options">
+                                <label><input type="checkbox" value="Economy Class" checked> Economy</label>
+                                <label><input type="checkbox" value="Premium Economy" checked> Premium Economy</label>
+                                <label><input type="checkbox" value="Business Class" checked> Business Class</label>
+                                <label><input type="checkbox" value="First Class" checked> First Class</label>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Recommendation Filter -->
+                    <div class="filter-group">
+                        <label for="filter-recommendation">Recommendation</label>
+                        <div class="filter-select-wrapper">
+                            <select id="filter-recommendation">
+                                <option value="all">All Recommendations</option>
+                                <option value="yes">Recommended</option>
+                                <option value="no">Not Recommended</option>
+                            </select>
+                        </div>
+                    </div>
+                    <!-- Country Filter -->
+                    <div class="filter-group filter-group-full">
+                        <label>Country Origin</label>
+                        <div class="multi-select-custom" id="country-multi-select">
+                            <button type="button" class="multi-select-trigger" id="country-trigger">All Countries</button>
+                            <div class="multi-select-options hidden" id="country-options">
+                                <div class="country-search-wrapper">
+                                    <input type="text" id="country-search-input" placeholder="Search country..." autocomplete="off">
+                                </div>
+                                <div class="country-checkboxes-list" id="country-checkboxes-list">
+                                    <!-- Options are populated dynamically -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="active-chips-container" id="active-chips-container">
+                    <!-- Dynamic chips -->
+                </div>
+            </div>
+
+            <!-- Dashboards / Charts -->
+            <div class="dashboard">
+                <div class="card chart-card">
+                    <h3>Sentiment Distribution</h3>
+                    <div class="chart-container">
+                        <canvas id="sentimentChart"></canvas>
+                    </div>
+                </div>
+                <div class="card wordcloud-card">
+                    <h3>Review Word Cloud</h3>
+                    <div class="wordcloud-container">
+                        <img id="wordcloud-img" alt="Word Cloud" src="" />
+                    </div>
+                </div>
+            </div>
+
+            <!-- Topic Analysis Section -->
+            <div class="section-title">
+                <h2>Aspect & Topic Analysis</h2>
+                <p class="section-subtitle">Most discussed positive and negative aspects extracted from review sentences</p>
+            </div>
+            <div class="topics-container">
+                <div class="card topics-card">
+                    <h3>Top Positive Topics</h3>
+                    <div class="topics-list" id="positive-topics-list">
+                        <!-- Dynamic content -->
+                    </div>
+                </div>
+                <div class="card topics-card">
+                    <h3>Top Negative Topics</h3>
+                    <div class="topics-list" id="negative-topics-list">
+                        <!-- Dynamic content -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Common Complaints Detector Section -->
+            <div class="section-title">
+                <h2>Common Complaints Detector</h2>
+                <p class="section-subtitle">NLP-extracted areas of passenger dissatisfaction and issue severity levels</p>
+            </div>
+            <div class="complaints-container">
+                <div class="card complaints-chart-card">
+                    <h3>Dissatisfaction Frequency</h3>
+                    <div class="complaints-chart" id="complaints-chart-list">
+                        <!-- Dynamic complaint bar list -->
+                    </div>
+                </div>
+                <div class="card complaints-details-card">
+                    <h3>Complaint Intelligence</h3>
+                    <div id="complaint-details-empty" class="complaint-details-empty">
+                        <svg viewBox="0 0 24 24" width="48" height="48" stroke="currentColor" stroke-width="1.5" fill="none">
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <line x1="12" y1="8" x2="12" y2="12"></line>
+                            <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                        </svg>
+                        <p>Select a complaint category to view severity analysis, automated summary, and passenger excerpts.</p>
+                    </div>
+                    <div id="complaint-details-content" class="complaint-details-content hidden">
+                        <div class="complaint-details-header">
+                            <h4 id="detail-complaint-name">Flight Delays</h4>
+                            <div id="detail-severity-badge">
+                                <!-- Severity badge -->
+                            </div>
+                        </div>
+                        <div class="complaint-metrics">
+                            <div class="complaint-metric-item">
+                                <span class="complaint-metric-label">Mentions</span>
+                                <span class="complaint-metric-value" id="detail-complaint-mentions">0</span>
+                            </div>
+                            <div class="complaint-metric-item">
+                                <span class="complaint-metric-label">Percentage</span>
+                                <span class="complaint-metric-value" id="detail-complaint-percentage">0%</span>
+                            </div>
+                        </div>
+                        <div class="complaint-ai-summary">
+                            <h5>Insights Summary</h5>
+                            <p id="detail-ai-summary"></p>
+                        </div>
+                        <div class="complaint-excerpts">
+                            <h5>Passenger Excerpts</h5>
+                            <ul id="detail-excerpts-list">
+                                <!-- Excerpts -->
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Review Geography Section -->
+            <div class="section-title geo-title-row">
+                <div>
+                    <h2>Review Geography</h2>
+                    <p class="section-subtitle">Origin country analysis, average ratings, and sentiment heatmaps</p>
+                </div>
+                <div class="geo-filters">
+                    <button class="geo-filter-btn active" data-filter="all">All Reviews</button>
+                    <button class="geo-filter-btn" data-filter="Positive">Positive Only</button>
+                    <button class="geo-filter-btn" data-filter="Negative">Negative Only</button>
+                </div>
+            </div>
+            <div class="geography-container">
+                <div class="card map-card">
+                    <div id="world-map"></div>
+                </div>
+                <div class="card ranking-card">
+                    <h3>Top Countries by Reviews</h3>
+                    <div class="table-container">
+                        <table class="ranking-table">
+                            <thead>
+                                <tr>
+                                    <th>Country</th>
+                                    <th>Reviews</th>
+                                    <th>Avg Rating</th>
+                                </tr>
+                            </thead>
+                            <tbody id="ranking-table-body">
+                                <!-- Dynamic rows -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <footer>
+            <p>&copy; 2026 SkyIntel. All rights reserved. &bull; Tagline: <em>NLP-Powered Airline Review Intelligence Platform</em></p>
+        </footer>
+    </div>
+
+    <script src="script.js?v=2"></script>
+</body>
+</html>
