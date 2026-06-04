@@ -16,7 +16,7 @@ let lastSentimentCounts = null;
 
 const API_BASE_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.protocol === 'file:'
     ? 'http://localhost:8000'
-    : 'https://skyintel-backend.onrender.com'; // Replace with your actual Render backend URL
+    : 'https://skyintel-api.onrender.com'; // Replace with your actual Render backend URL
 
 // Theme Switching Logic
 const themeToggle = document.getElementById('theme-toggle');
@@ -35,7 +35,7 @@ themeToggle.addEventListener('click', () => {
     document.body.classList.toggle('light-theme');
     const isLight = document.body.classList.contains('light-theme');
     localStorage.setItem('theme', isLight ? 'light' : 'dark');
-    
+
     if (isLight) {
         moonIcon.classList.add('hidden');
         sunIcon.classList.remove('hidden');
@@ -43,7 +43,7 @@ themeToggle.addEventListener('click', () => {
         moonIcon.classList.remove('hidden');
         sunIcon.classList.add('hidden');
     }
-    
+
     // Refresh visual components to adapt to theme colors
     if (allReviews.length > 0) {
         renderAllDashboard();
@@ -54,7 +54,7 @@ themeToggle.addEventListener('click', () => {
 document.querySelectorAll('.multi-select-custom').forEach(dropdown => {
     const trigger = dropdown.querySelector('.multi-select-trigger');
     const options = dropdown.querySelector('.multi-select-options');
-    
+
     trigger.addEventListener('click', (e) => {
         e.stopPropagation();
         // Close all other dropdowns
@@ -153,7 +153,7 @@ function getCountryNameFromCode(code) {
 // Form Submission (Search)
 form.addEventListener('submit', async (e) => {
     e.preventDefault();
-    
+
     const airline = input.value.trim();
     if (!airline) return;
 
@@ -164,17 +164,17 @@ form.addEventListener('submit', async (e) => {
 
     try {
         const response = await fetch(`${API_BASE_URL}/api/analyze?airline=${encodeURIComponent(airline)}&pages=3`);
-        
+
         if (!response.ok) {
             const data = await response.json().catch(() => ({}));
             throw new Error(data.detail || 'Failed to analyze airline');
         }
 
         const data = await response.json();
-        
+
         // Save initial reviews
         allReviews = data.reviews_raw;
-        
+
         // Update basic displays
         airlineDisplay.textContent = data.airline;
         wordcloudImg.src = `data:image/png;base64,${data.wordcloud_base64}`;
@@ -199,7 +199,7 @@ form.addEventListener('submit', async (e) => {
 function populateCountryChecklist() {
     const container = document.getElementById('country-checkboxes-list');
     container.innerHTML = '';
-    
+
     // Extract unique countries
     const countries = [];
     allReviews.forEach(r => {
@@ -207,9 +207,9 @@ function populateCountryChecklist() {
             countries.push(r.country);
         }
     });
-    
+
     countries.sort((a, b) => getCountryNameFromCode(a).localeCompare(getCountryNameFromCode(b)));
-    
+
     countries.forEach(code => {
         const label = document.createElement('label');
         label.innerHTML = `<input type="checkbox" value="${code}" checked> ${getCountryNameFromCode(code)}`;
@@ -225,7 +225,7 @@ function resetFiltersSilently() {
     document.getElementById('custom-date-start').value = '';
     document.getElementById('custom-date-end').value = '';
     document.getElementById('filter-recommendation').value = 'all';
-    
+
     document.querySelectorAll('#rating-options input').forEach(cb => cb.checked = true);
     document.querySelectorAll('#traveler-options input').forEach(cb => cb.checked = true);
     document.querySelectorAll('#cabin-options input').forEach(cb => cb.checked = true);
@@ -245,7 +245,7 @@ function applyFilters() {
     const customStart = document.getElementById('custom-date-start').value;
     const customEnd = document.getElementById('custom-date-end').value;
     const recommendation = document.getElementById('filter-recommendation').value;
-    
+
     const selectedRatings = getSelectedCheckboxes('rating-options');
     const selectedTravelers = getSelectedCheckboxes('traveler-options');
     const selectedCabins = getSelectedCheckboxes('cabin-options');
@@ -264,14 +264,14 @@ function applyFilters() {
     filteredReviews = allReviews.filter(review => {
         // Sentiment filter
         if (sentiment !== 'all' && review.sentiment !== sentiment) return false;
-        
+
         // Recommendation filter
         if (recommendation !== 'all' && review.recommended !== recommendation) return false;
-        
+
         // Rating Filter
         const rVal = review.rating ? Math.max(1, Math.min(5, Math.round(review.rating))) : null;
         if (rVal && !selectedRatings.includes(rVal.toString())) return false;
-        
+
         // Traveler Type Filter
         if (review.traveler_type) {
             const revType = review.traveler_type.toLowerCase();
@@ -282,22 +282,22 @@ function applyFilters() {
             });
             if (!matched) return false;
         }
-        
+
         // Cabin Class Filter
         if (review.cabin_class && !selectedCabins.includes(review.cabin_class)) return false;
-        
+
         // Country Filter
         if (review.country && review.country !== 'Unknown' && selectedCountries.length > 0) {
             if (!selectedCountries.includes(review.country)) return false;
         }
-        
+
         // Date Range Filter
         if (review.date) {
             const revDate = new Date(review.date);
             if (revDate && !isNaN(revDate)) {
                 const diffTime = Math.abs(referenceDate - revDate);
                 const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-                
+
                 if (dateRange === 'month' && diffDays > 30) return false;
                 if (dateRange === '3months' && diffDays > 90) return false;
                 if (dateRange === '6months' && diffDays > 180) return false;
@@ -308,13 +308,13 @@ function applyFilters() {
                 }
             }
         }
-        
+
         return true;
     });
 
     // Update triggers visual text
     updateDropdownTriggersText(selectedRatings, selectedTravelers, selectedCabins, selectedCountries);
-    
+
     // Update chips display
     renderFilterChips(sentiment, dateRange, customStart, customEnd, recommendation, selectedRatings, selectedTravelers, selectedCabins, selectedCountries);
 
@@ -326,7 +326,7 @@ function updateDropdownTriggersText(ratings, travelers, cabins, countries) {
     document.getElementById('rating-trigger').textContent = ratings.length === 5 ? 'All Ratings' : `${ratings.length} Selected`;
     document.getElementById('traveler-trigger').textContent = travelers.length === 4 ? 'All Types' : `${travelers.length} Selected`;
     document.getElementById('cabin-trigger').textContent = cabins.length === 4 ? 'All Classes' : `${cabins.length} Selected`;
-    
+
     const totalCountries = document.querySelectorAll('#country-checkboxes-list input').length;
     document.getElementById('country-trigger').textContent = countries.length === totalCountries ? 'All Countries' : `${countries.length} Selected`;
 }
@@ -334,7 +334,7 @@ function updateDropdownTriggersText(ratings, travelers, cabins, countries) {
 function renderFilterChips(sentiment, dateRange, start, end, recommendation, ratings, travelers, cabins, countries) {
     const container = document.getElementById('active-chips-container');
     container.innerHTML = '';
-    
+
     let chipsCount = 0;
 
     const addChip = (labelText, removeCallback) => {
@@ -412,7 +412,7 @@ function renderFilterChips(sentiment, dateRange, start, end, recommendation, rat
 function renderAllDashboard() {
     const totalCount = allReviews.length;
     const matchCount = filteredReviews.length;
-    
+
     // Update match count badge
     document.getElementById('filter-count').textContent = `Showing ${matchCount} of ${totalCount} Reviews`;
     reviewsBadge.textContent = `${matchCount} Reviews`;
@@ -459,7 +459,7 @@ function renderAllDashboard() {
         const prevRating = filteredReviews.slice(halfLen).reduce((acc, r) => acc + (r.rating || 0), 0) / filteredReviews.slice(halfLen).filter(r => r.rating !== null).length;
         const trendRating = isNaN(recentRating) || isNaN(prevRating) ? 0.0 : (recentRating - prevRating).toFixed(2);
         updateTrend(document.getElementById('kpi-rating-trend'), trendRating, '');
-        
+
         const recentRec = filteredReviews.slice(0, halfLen).filter(r => r.recommended === 'yes').length / filteredReviews.slice(0, halfLen).filter(r => r.recommended).length;
         const prevRec = filteredReviews.slice(halfLen).filter(r => r.recommended === 'yes').length / filteredReviews.slice(halfLen).filter(r => r.recommended).length;
         const trendRec = isNaN(recentRec) || isNaN(prevRec) ? 0 : Math.round((recentRec - prevRec) * 100);
@@ -491,7 +491,7 @@ function renderAllDashboard() {
 function updateTrend(element, trendValue, unit) {
     const indicator = element.querySelector('.trend-indicator');
     const text = element.querySelector('.trend-text');
-    
+
     if (trendValue > 0) {
         element.className = 'kpi-card-trend trend-up';
         indicator.textContent = '▲';
@@ -509,14 +509,14 @@ function updateTrend(element, trendValue, unit) {
 
 function renderChart(counts) {
     const ctx = document.getElementById('sentimentChart').getContext('2d');
-    
+
     if (chartInstance) {
         chartInstance.destroy();
     }
 
     const labels = Object.keys(counts);
     const data = Object.values(counts);
-    
+
     const bgColors = labels.map(label => {
         if (label === 'Positive') return 'rgba(52, 211, 153, 0.8)'; // Emerald
         if (label === 'Negative') return 'rgba(239, 68, 68, 0.8)'; // Red
@@ -580,12 +580,12 @@ function renderChart(counts) {
 function aggregateAspects() {
     const posList = document.getElementById('positive-topics-list');
     const negList = document.getElementById('negative-topics-list');
-    
+
     posList.innerHTML = '';
     negList.innerHTML = '';
-    
+
     const aspectStats = {};
-    
+
     filteredReviews.forEach(r => {
         if (r.aspects) {
             r.aspects.forEach(asp => {
@@ -611,7 +611,7 @@ function aggregateAspects() {
 
     const posTopics = [];
     const negTopics = [];
-    
+
     Object.keys(aspectStats).forEach(name => {
         const stats = aspectStats[name];
         if (stats.positive_count > 0) {
@@ -698,7 +698,7 @@ function runComplaintsEngine() {
         if (r.sentiment === 'Negative') {
             totalNegativeReviews++;
         }
-        
+
         if (r.complaints) {
             r.complaints.forEach(comp => {
                 const cat = comp.category;
@@ -722,7 +722,7 @@ function runComplaintsEngine() {
     Object.keys(complaintStats).forEach(cat => {
         const stats = complaintStats[cat];
         const avgSentiment = stats.sentimentScores.reduce((a, b) => a + b, 0) / stats.sentimentScores.length;
-        
+
         // Calculate Severity Score
         // Formula: mentions * (0.5 + Math.abs(avgSentiment))
         const severityScore = stats.count * (0.5 + Math.abs(avgSentiment));
@@ -770,7 +770,7 @@ function runComplaintsEngine() {
 
     complaintList.forEach(comp => {
         const pct = maxCount > 0 ? (comp.count / maxCount) * 100 : 0;
-        
+
         const row = document.createElement('div');
         row.className = `complaint-bar-row ${activeSelectedComplaint === comp.category ? 'active' : ''}`;
         row.innerHTML = `
@@ -818,34 +818,34 @@ function showComplaintDetail(complaint, totalNegativeReviews) {
     content.classList.remove('hidden');
 
     document.getElementById('detail-complaint-name').textContent = complaint.category;
-    
+
     // Severity badge
     const badgeContainer = document.getElementById('detail-severity-badge');
     badgeContainer.innerHTML = `<span class="severity-indicator ${complaint.severityClass}">${complaint.severityEmoji} ${complaint.severity} Severity</span>`;
 
     // Metrics
     document.getElementById('detail-complaint-mentions').textContent = complaint.count;
-    
+
     const pct = totalNegativeReviews > 0 ? Math.round((complaint.count / totalNegativeReviews) * 100) : 0;
     document.getElementById('detail-complaint-percentage').textContent = `${pct}%`;
 
     // NLP generated summary template (calculate trend comparing chronologically split halves)
     let trendDir = 'increased';
     let trendVal = 15;
-    
+
     // Calculate a real trend
     const midIdx = Math.floor(filteredReviews.length / 2);
     if (midIdx > 0) {
         let firstHalfComp = 0;
         let secondHalfComp = 0;
-        
+
         filteredReviews.slice(0, midIdx).forEach(r => {
             if (r.complaints && r.complaints.some(c => c.category === complaint.category)) firstHalfComp++;
         });
         filteredReviews.slice(midIdx).forEach(r => {
             if (r.complaints && r.complaints.some(c => c.category === complaint.category)) secondHalfComp++;
         });
-        
+
         if (firstHalfComp !== secondHalfComp) {
             if (firstHalfComp > secondHalfComp) {
                 trendDir = 'increased'; // recent period is first half in chronological ordering (scraped desc)
@@ -863,7 +863,7 @@ function showComplaintDetail(complaint, totalNegativeReviews) {
     // Review snippets list
     const excerptsList = document.getElementById('detail-excerpts-list');
     excerptsList.innerHTML = '';
-    
+
     const topSnippets = complaint.snippets.slice(0, 3);
     topSnippets.forEach(snip => {
         const li = document.createElement('li');
@@ -877,7 +877,7 @@ let currentGeoFilter = 'all';
 
 function updateGeography(filter) {
     currentGeoFilter = filter;
-    
+
     let filtered = filteredReviews;
     if (filter === 'Positive') {
         filtered = filteredReviews.filter(r => r.sentiment === 'Positive');
