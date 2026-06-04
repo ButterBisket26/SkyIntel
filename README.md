@@ -14,13 +14,12 @@ SkyIntel is an enterprise-grade customer experience analytics dashboard tailored
 ---
 
 ## Table of Contents
-1. [System Architecture](#system-architecture)
-2. [Data Processing Pipeline](#data-processing-pipeline)
-3. [Technical Specifications](#technical-specifications)
-4. [Backend API Documentation](#backend-api-documentation)
-5. [Frontend Design & Features](#frontend-design--features)
-6. [Development Setup & Run Guide](#development-setup--run-guide)
-7. [Hosting & Cloud Deployment Guide](#hosting--cloud-deployment-guide)
+1. System Architecture
+2. Data Processing Pipeline
+3. Technical Specifications
+4. Backend API Documentation
+5. Frontend Design & Features
+6. Development Setup & Run Guide
 
 ---
 
