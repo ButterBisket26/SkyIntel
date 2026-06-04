@@ -214,7 +214,7 @@ def vader_analysis(compound):
 def read_root():
     return {"status": "ok", "message": "SkyIntel Sentiment API is running"}
 
-def fetch_html_with_fallback(url: str, page_num: int, airline_name: str) -> str:
+def fetch_page_specific(url: str, page_num: int, airline_name: str, method: str) -> str:
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
         "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8",
@@ -225,86 +225,121 @@ def fetch_html_with_fallback(url: str, page_num: int, airline_name: str) -> str:
     
     def validate_page(html_content: str) -> bool:
         parsed = BeautifulSoup(html_content, 'html.parser')
-        # Check if there are reviews
         articles = parsed.find_all("article", {"itemprop": "review"})
         if len(articles) == 0:
             return False
-        # If it's page 1, verify the title matches the airline name
         if page_num == 1:
             title_text = parsed.title.string.lower() if parsed.title else ""
             normalized_name = airline_name.lower().replace("-", " ").strip()
             name_no_spaces = normalized_name.replace(" ", "")
             title_no_spaces = title_text.replace(" ", "")
             if not ((normalized_name in title_text) or (name_no_spaces in title_no_spaces)):
-                print(f"Scraper: Title validation failed. Title: '{title_text}', expected: '{normalized_name}'")
                 return False
         return True
 
-    # 1. Try Direct request
-    try:
-        print(f"Scraper: Attempting direct request to: {url}")
-        response = requests.get(url, headers=headers, timeout=15)
-        if response.status_code == 200:
-            if validate_page(response.text):
-                print("Scraper: Direct request successful and validated.")
-                return response.text
-            else:
-                print("Scraper: Direct request failed validation. Trying proxies...")
-        elif response.status_code == 404:
-            if page_num == 1:
-                raise HTTPException(status_code=404, detail=f"Airline '{airline_name}' not found. Please try a valid name like 'Qatar Airways'.")
-            return ""
-        else:
-            print(f"Scraper: Direct request failed with status code {response.status_code}. Trying proxies...")
-    except HTTPException:
-        raise
-    except Exception as e:
-        print(f"Scraper: Direct request failed with exception: {e}. Trying proxies...")
+    timeout = 6
 
-    # 2. Try AllOrigins proxy
     try:
-        allorigins_url = f"https://api.allorigins.win/raw?url={urllib.parse.quote(url)}"
-        print(f"Scraper: Attempting proxy request via AllOrigins: {allorigins_url}")
-        response = requests.get(allorigins_url, headers=headers, timeout=15)
-        if response.status_code == 200:
-            if validate_page(response.text):
-                print("Scraper: AllOrigins proxy request successful and validated.")
+        if method == "direct":
+            response = requests.get(url, headers=headers, timeout=timeout)
+            if response.status_code == 200 and validate_page(response.text):
                 return response.text
-            else:
-                print("Scraper: AllOrigins proxy failed validation. Trying next proxy...")
-        elif response.status_code == 404:
-            if page_num == 1:
-                raise HTTPException(status_code=404, detail=f"Airline '{airline_name}' not found. Please try a valid name like 'Qatar Airways'.")
-            return ""
-    except HTTPException:
-        raise
-    except Exception as e:
-        print(f"Scraper: AllOrigins proxy failed: {e}")
-
-    # 3. Try CodeTabs proxy
-    try:
-        codetabs_url = f"https://api.codetabs.com/v1/proxy?quest={urllib.parse.quote(url)}"
-        print(f"Scraper: Attempting proxy request via CodeTabs: {codetabs_url}")
-        response = requests.get(codetabs_url, headers=headers, timeout=15)
-        if response.status_code == 200:
-            if validate_page(response.text):
-                print("Scraper: CodeTabs proxy request successful and validated.")
+        elif method == "codetabs":
+            codetabs_url = f"https://api.codetabs.com/v1/proxy?quest={urllib.parse.quote(url)}"
+            response = requests.get(codetabs_url, headers=headers, timeout=timeout)
+            if response.status_code == 200 and validate_page(response.text):
                 return response.text
-            else:
-                print("Scraper: CodeTabs proxy failed validation.")
-        elif response.status_code == 404:
-            if page_num == 1:
-                raise HTTPException(status_code=404, detail=f"Airline '{airline_name}' not found. Please try a valid name like 'Qatar Airways'.")
-            return ""
-    except HTTPException:
-        raise
+        elif method == "allorigins":
+            allorigins_url = f"https://api.allorigins.win/raw?url={urllib.parse.quote(url)}"
+            response = requests.get(allorigins_url, headers=headers, timeout=timeout)
+            if response.status_code == 200 and validate_page(response.text):
+                return response.text
     except Exception as e:
-        print(f"Scraper: CodeTabs proxy failed: {e}")
-
-    # If we get here, everything failed.
-    if page_num == 1:
-        raise HTTPException(status_code=404, detail=f"Airline '{airline_name}' not found or could not be scraped. Please try a valid name like 'Qatar Airways'.")
+        print(f"Scraper: Specific fetch failed for {method} on page {page_num}: {e}")
+        
     return ""
+
+def fetch_page_1_with_fallback(url: str, airline_name: str) -> tuple[str, str]:
+    methods = ["direct", "codetabs", "allorigins"]
+    for method in methods:
+        print(f"Scraper: Trying method '{method}' for page 1...")
+        html = fetch_page_specific(url, 1, airline_name, method)
+        if html:
+            print(f"Scraper: Method '{method}' succeeded for page 1.")
+            return html, method
+            
+    raise HTTPException(
+        status_code=404, 
+        detail=f"Airline '{airline_name}' not found or could not be scraped. Please try a valid name like 'Qatar Airways'."
+    )
+
+def parse_article(article):
+    # Text content
+    review_text_div = article.find("div", {"class": "text_content"})
+    review_text = review_text_div.get_text() if review_text_div else ""
+    
+    # Rating (out of 10)
+    rating_val = None
+    rating_span = article.find(attrs={"itemprop": "ratingValue"})
+    if rating_span:
+        try:
+            rating_val = float(rating_span.get_text().strip())
+        except ValueError:
+            pass
+    
+    # Recommended (yes/no)
+    recommended = None
+    table = article.find("table", {"class": "review-ratings"})
+    if table:
+        for row in table.find_all("tr"):
+            header = row.find("td", {"class": "review-rating-header"})
+            if header and "Recommended" in header.get_text():
+                value = row.find("td", {"class": "review-value"})
+                if value:
+                    recommended = value.get_text().strip().lower()
+    
+    # Reviewer country extraction
+    country_val = "Unknown"
+    h3 = article.find("h3")
+    if h3:
+        h3_text = h3.get_text()
+        match = re.search(r'\(([^)]+)\)', h3_text)
+        if match:
+            country_val = match.group(1).strip()
+
+    # Review date extraction
+    time_tag = article.find("time", {"itemprop": "datePublished"})
+    date_val = time_tag.get("datetime") if time_tag else None
+    if not date_val and time_tag:
+        date_val = time_tag.get_text().strip()
+    if not date_val:
+        date_val = ""
+
+    # Traveler type & cabin class extraction
+    traveler_type = None
+    cabin_class = None
+    if table:
+        for row in table.find_all("tr"):
+            header_td = row.find("td", {"class": "review-rating-header"})
+            if header_td:
+                header_text = header_td.get_text().strip()
+                value_td = row.find("td", {"class": "review-value"})
+                if value_td:
+                    val = value_td.get_text().strip()
+                    if "Type Of Traveller" in header_text:
+                        traveler_type = val
+                    elif "Seat Type" in header_text:
+                        cabin_class = val
+
+    return {
+        "text": review_text,
+        "rating": rating_val,
+        "recommended": recommended,
+        "country": country_val,
+        "date": date_val,
+        "traveler_type": traveler_type,
+        "cabin_class": cabin_class
+    }
 
 @app.get("/api/analyze", response_model=AnalysisResponse)
 def analyze_airline(airline: str, pages: int = 3):
@@ -314,87 +349,43 @@ def analyze_airline(airline: str, pages: int = 3):
     page_size = 100
     reviews = []
 
-    for i in range(1, pages + 1):
-        url = f"{base_url}/page/{i}/?sortby=post_date%3ADesc&pagesize={page_size}"
-        try:
-            html_content = fetch_html_with_fallback(url, i, airline)
-            if not html_content:
-                break
-            parsed_content = BeautifulSoup(html_content, 'html.parser')
-            articles = parsed_content.find_all("article", {"itemprop": "review"})
-            for article in articles:
-                # Text content
-                review_text_div = article.find("div", {"class": "text_content"})
-                review_text = review_text_div.get_text() if review_text_div else ""
-                
-                # Rating (out of 10)
-                rating_val = None
-                rating_span = article.find(attrs={"itemprop": "ratingValue"})
-                if rating_span:
-                    try:
-                        rating_val = float(rating_span.get_text().strip())
-                    except ValueError:
-                        pass
-                
-                # Recommended (yes/no)
-                recommended = None
-                table = article.find("table", {"class": "review-ratings"})
-                if table:
-                    for row in table.find_all("tr"):
-                        header = row.find("td", {"class": "review-rating-header"})
-                        if header and "Recommended" in header.get_text():
-                            value = row.find("td", {"class": "review-value"})
-                            if value:
-                                recommended = value.get_text().strip().lower()
-                
-                # Reviewer country extraction
-                country_val = "Unknown"
-                h3 = article.find("h3")
-                if h3:
-                    h3_text = h3.get_text()
-                    match = re.search(r'\(([^)]+)\)', h3_text)
-                    if match:
-                        country_val = match.group(1).strip()
+    # 1. Fetch Page 1 and determine working method
+    url_page1 = f"{base_url}/page/1/?sortby=post_date%3ADesc&pagesize={page_size}"
+    html_page1, working_method = fetch_page_1_with_fallback(url_page1, airline)
+    
+    if not html_page1:
+        raise HTTPException(status_code=404, detail=f"No reviews could be scraped for '{airline}'.")
+        
+    parsed_content = BeautifulSoup(html_page1, 'html.parser')
+    articles_page1 = parsed_content.find_all("article", {"itemprop": "review"})
+    for article in articles_page1:
+        reviews.append(parse_article(article))
 
-                # Review date extraction
-                time_tag = article.find("time", {"itemprop": "datePublished"})
-                date_val = time_tag.get("datetime") if time_tag else None
-                if not date_val and time_tag:
-                    date_val = time_tag.get_text().strip()
-                if not date_val:
-                    date_val = ""
-
-                # Traveler type & cabin class extraction
-                traveler_type = None
-                cabin_class = None
-                if table:
-                    for row in table.find_all("tr"):
-                        header_td = row.find("td", {"class": "review-rating-header"})
-                        if header_td:
-                            header_text = header_td.get_text().strip()
-                            value_td = row.find("td", {"class": "review-value"})
-                            if value_td:
-                                val = value_td.get_text().strip()
-                                if "Type Of Traveller" in header_text:
-                                    traveler_type = val
-                                elif "Seat Type" in header_text:
-                                    cabin_class = val
-
-                reviews.append({
-                    "text": review_text,
-                    "rating": rating_val,
-                    "recommended": recommended,
-                    "country": country_val,
-                    "date": date_val,
-                    "traveler_type": traveler_type,
-                    "cabin_class": cabin_class
-                })
-        except HTTPException:
-             raise
-        except Exception as e:
-             print(f"Scraper error on page {i}: {e}")
-             continue
+    # 2. Fetch remaining pages concurrently using the working method
+    if pages > 1 and working_method:
+        urls = [f"{base_url}/page/{i}/?sortby=post_date%3ADesc&pagesize={page_size}" for i in range(2, pages + 1)]
+        
+        import concurrent.futures
+        with concurrent.futures.ThreadPoolExecutor(max_workers=pages-1) as executor:
+            # Map futures to their page numbers
+            future_to_page = {
+                executor.submit(fetch_page_specific, url, i, airline, working_method): i 
+                for i, url in enumerate(urls, start=2)
+            }
             
+            # Gather results in order of completion
+            for future in concurrent.futures.as_completed(future_to_page):
+                p_num = future_to_page[future]
+                try:
+                    html_content = future.result()
+                    if html_content:
+                        parsed_content = BeautifulSoup(html_content, 'html.parser')
+                        articles = parsed_content.find_all("article", {"itemprop": "review"})
+                        for article in articles:
+                            reviews.append(parse_article(article))
+                except Exception as e:
+                    print(f"Scraper: Parallel fetch failed for page {p_num}: {e}")
+
     if not reviews:
         raise HTTPException(status_code=404, detail=f"No reviews could be scraped for '{airline}'.")
 
