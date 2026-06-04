@@ -14,6 +14,7 @@ from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 from wordcloud import WordCloud, STOPWORDS
 import io
 import base64
+import urllib.parse
 from typing import List, Optional
 
 # Download required NLTK data when the app starts.
@@ -213,6 +214,98 @@ def vader_analysis(compound):
 def read_root():
     return {"status": "ok", "message": "SkyIntel Sentiment API is running"}
 
+def fetch_html_with_fallback(url: str, page_num: int, airline_name: str) -> str:
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8",
+        "Accept-Language": "en-US,en;q=0.9",
+        "Accept-Encoding": "gzip, deflate, br",
+        "Connection": "keep-alive",
+    }
+    
+    def validate_page(html_content: str) -> bool:
+        parsed = BeautifulSoup(html_content, 'html.parser')
+        # Check if there are reviews
+        articles = parsed.find_all("article", {"itemprop": "review"})
+        if len(articles) == 0:
+            return False
+        # If it's page 1, verify the title matches the airline name
+        if page_num == 1:
+            title_text = parsed.title.string.lower() if parsed.title else ""
+            normalized_name = airline_name.lower().replace("-", " ").strip()
+            name_no_spaces = normalized_name.replace(" ", "")
+            title_no_spaces = title_text.replace(" ", "")
+            if not ((normalized_name in title_text) or (name_no_spaces in title_no_spaces)):
+                print(f"Scraper: Title validation failed. Title: '{title_text}', expected: '{normalized_name}'")
+                return False
+        return True
+
+    # 1. Try Direct request
+    try:
+        print(f"Scraper: Attempting direct request to: {url}")
+        response = requests.get(url, headers=headers, timeout=15)
+        if response.status_code == 200:
+            if validate_page(response.text):
+                print("Scraper: Direct request successful and validated.")
+                return response.text
+            else:
+                print("Scraper: Direct request failed validation. Trying proxies...")
+        elif response.status_code == 404:
+            if page_num == 1:
+                raise HTTPException(status_code=404, detail=f"Airline '{airline_name}' not found. Please try a valid name like 'Qatar Airways'.")
+            return ""
+        else:
+            print(f"Scraper: Direct request failed with status code {response.status_code}. Trying proxies...")
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Scraper: Direct request failed with exception: {e}. Trying proxies...")
+
+    # 2. Try AllOrigins proxy
+    try:
+        allorigins_url = f"https://api.allorigins.win/raw?url={urllib.parse.quote(url)}"
+        print(f"Scraper: Attempting proxy request via AllOrigins: {allorigins_url}")
+        response = requests.get(allorigins_url, headers=headers, timeout=15)
+        if response.status_code == 200:
+            if validate_page(response.text):
+                print("Scraper: AllOrigins proxy request successful and validated.")
+                return response.text
+            else:
+                print("Scraper: AllOrigins proxy failed validation. Trying next proxy...")
+        elif response.status_code == 404:
+            if page_num == 1:
+                raise HTTPException(status_code=404, detail=f"Airline '{airline_name}' not found. Please try a valid name like 'Qatar Airways'.")
+            return ""
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Scraper: AllOrigins proxy failed: {e}")
+
+    # 3. Try CodeTabs proxy
+    try:
+        codetabs_url = f"https://api.codetabs.com/v1/proxy?quest={urllib.parse.quote(url)}"
+        print(f"Scraper: Attempting proxy request via CodeTabs: {codetabs_url}")
+        response = requests.get(codetabs_url, headers=headers, timeout=15)
+        if response.status_code == 200:
+            if validate_page(response.text):
+                print("Scraper: CodeTabs proxy request successful and validated.")
+                return response.text
+            else:
+                print("Scraper: CodeTabs proxy failed validation.")
+        elif response.status_code == 404:
+            if page_num == 1:
+                raise HTTPException(status_code=404, detail=f"Airline '{airline_name}' not found. Please try a valid name like 'Qatar Airways'.")
+            return ""
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Scraper: CodeTabs proxy failed: {e}")
+
+    # If we get here, everything failed.
+    if page_num == 1:
+        raise HTTPException(status_code=404, detail=f"Airline '{airline_name}' not found or could not be scraped. Please try a valid name like 'Qatar Airways'.")
+    return ""
+
 @app.get("/api/analyze", response_model=AnalysisResponse)
 def analyze_airline(airline: str, pages: int = 3):
     # Normalize airline name format
@@ -224,13 +317,10 @@ def analyze_airline(airline: str, pages: int = 3):
     for i in range(1, pages + 1):
         url = f"{base_url}/page/{i}/?sortby=post_date%3ADesc&pagesize={page_size}"
         try:
-            response = requests.get(url, headers={"User-Agent": "Mozilla/5.0"}, timeout=15)
-            if response.status_code == 404:
-                if i == 1:
-                    raise HTTPException(status_code=404, detail=f"Airline '{airline}' not found. Please try a valid name like 'Qatar Airways'.")
+            html_content = fetch_html_with_fallback(url, i, airline)
+            if not html_content:
                 break
-            response.raise_for_status()
-            parsed_content = BeautifulSoup(response.content, 'html.parser')
+            parsed_content = BeautifulSoup(html_content, 'html.parser')
             articles = parsed_content.find_all("article", {"itemprop": "review"})
             for article in articles:
                 # Text content
@@ -299,11 +389,11 @@ def analyze_airline(airline: str, pages: int = 3):
                     "traveler_type": traveler_type,
                     "cabin_class": cabin_class
                 })
-        except requests.exceptions.HTTPError as e:
-             if response.status_code == 404 and i == 1:
-                 raise HTTPException(status_code=404, detail=f"Airline '{airline}' not found.")
+        except HTTPException:
+             raise
         except Exception as e:
-            continue
+             print(f"Scraper error on page {i}: {e}")
+             continue
             
     if not reviews:
         raise HTTPException(status_code=404, detail=f"No reviews could be scraped for '{airline}'.")
