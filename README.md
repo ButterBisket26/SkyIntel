@@ -145,4 +145,17 @@ If you are already in the project root directory, run these commands in separate
 
 Once started, open [http://localhost:3000](http://localhost:3000) in your browser.
 
----
+
+## 7. Hosting & Cloud Deployment Guide
+
+### Backend Deployment (Render)
+1. Commit all files (including `render.yaml`) to your GitHub repository.
+2. In the Render Dashboard, click **New** -> **Blueprint**.
+3. Connect your SkyIntel repository.
+4. Render will automatically detect `render.yaml` and set up the `skyintel-backend` service. Click **Apply**.
+
+### Frontend Deployment (Vercel)
+1. In the Vercel Dashboard, click **Add New** -> **Project**.
+2. Import your SkyIntel repository.
+3. Configure the **Root Directory** as `frontend`.
+4. Click **Deploy**.

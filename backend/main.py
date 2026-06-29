@@ -237,30 +237,28 @@ def fetch_page_specific(url: str, page_num: int, airline_name: str, method: str)
                 return False
         return True
 
-    timeout = 6
-
     try:
         if method == "direct":
-            response = requests.get(url, headers=headers, timeout=timeout)
-            if response.status_code == 200 and validate_page(response.text):
-                return response.text
-        elif method == "codetabs":
-            codetabs_url = f"https://api.codetabs.com/v1/proxy?quest={urllib.parse.quote(url)}"
-            response = requests.get(codetabs_url, headers=headers, timeout=timeout)
+            response = requests.get(url, headers=headers, timeout=6)
             if response.status_code == 200 and validate_page(response.text):
                 return response.text
         elif method == "allorigins":
-            allorigins_url = f"https://api.allorigins.win/raw?url={urllib.parse.quote(url)}"
-            response = requests.get(allorigins_url, headers=headers, timeout=timeout)
-            if response.status_code == 200 and validate_page(response.text):
-                return response.text
+            allorigins_url = f"https://api.allorigins.win/get?url={urllib.parse.quote(url)}"
+            response = requests.get(allorigins_url, headers=headers, timeout=15)
+            if response.status_code == 200:
+                try:
+                    contents = response.json().get("contents", "")
+                    if contents and validate_page(contents):
+                        return contents
+                except Exception as je:
+                    print(f"Scraper: failed to parse JSON from allorigins: {je}")
     except Exception as e:
         print(f"Scraper: Specific fetch failed for {method} on page {page_num}: {e}")
         
     return ""
 
 def fetch_page_1_with_fallback(url: str, airline_name: str) -> tuple[str, str]:
-    methods = ["direct", "codetabs", "allorigins"]
+    methods = ["direct", "allorigins"]
     for method in methods:
         print(f"Scraper: Trying method '{method}' for page 1...")
         html = fetch_page_specific(url, 1, airline_name, method)
@@ -341,10 +339,64 @@ def parse_article(article):
         "cabin_class": cabin_class
     }
 
+AIRLINE_MAPPING = {
+    "delta": "delta-air-lines",
+    "delta airlines": "delta-air-lines",
+    "united": "united-airlines",
+    "singapore": "singapore-airlines",
+    "american": "american-airlines",
+    "malaysia": "malaysia-airlines",
+    "ana": "ana-all-nippon-airways",
+    "all nippon": "ana-all-nippon-airways",
+    "cathay": "cathay-pacific-airways",
+    "cathay pacific": "cathay-pacific-airways",
+    "thai": "thai-airways",
+    "emirates airlines": "emirates",
+    "air asia": "airasia",
+    "klm": "klm-royal-dutch-airlines",
+    "swiss": "swiss-international-air-lines",
+    "swiss air": "swiss-international-air-lines",
+    "japan airlines": "japan-airlines",
+    "jal": "japan-airlines",
+    "korean": "korean-air",
+    "wizz": "wizz-air",
+    "spirit": "spirit-airlines",
+    "frontier": "frontier-airlines",
+    "jetblue": "jetblue-airways",
+    "jet blue": "jetblue-airways",
+    "alaska": "alaska-airlines",
+    "southwest": "southwest-airlines",
+    "hawaiian": "hawaiian-airlines",
+    "etihad": "etihad-airways",
+    "gulf air": "gulf-air",
+    "saudia": "saudia",
+    "oman air": "oman-air",
+    "srilankan": "srilankan-airlines",
+    "virgin atlantic": "virgin-atlantic",
+    "aer lingus": "aer-lingus",
+    "tap": "tap-portugal",
+    "tap air portugal": "tap-portugal",
+    "brussels": "brussels-airlines",
+    "sas": "sas-scandinavian-airlines",
+    "scandinavian": "sas-scandinavian-airlines",
+    "austrian": "austrian-airlines",
+    "lot": "lot-polish-airlines",
+    "aegean": "aegean-airlines",
+    "air baltic": "air-baltic",
+    "copa": "copa-airlines",
+    "asiana": "asiana-airlines",
+    "vietnam": "vietnam-airlines",
+}
+
 @app.get("/api/analyze", response_model=AnalysisResponse)
 def analyze_airline(airline: str, pages: int = 3):
     # Normalize airline name format
-    airline_slug = airline.lower().replace(" ", "-")
+    normalized_input = airline.lower().strip()
+    if normalized_input in AIRLINE_MAPPING:
+        airline_slug = AIRLINE_MAPPING[normalized_input]
+    else:
+        airline_slug = normalized_input.replace(" ", "-")
+        
     base_url = f"https://www.airlinequality.com/airline-reviews/{airline_slug}"
     page_size = 100
     reviews = []
